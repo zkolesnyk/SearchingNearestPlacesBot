@@ -2,6 +2,7 @@ package bot.kolesnyk;
 
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.TelegramBotsApi;
+import org.telegram.telegrambots.api.methods.ForwardMessage;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.api.objects.Message;
@@ -32,13 +33,12 @@ public class Bot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         // костяк с ответами на сообщения
         Message message = update.getMessage();
-
         String text = message.getText();
         if (message.hasText()) {
             switch (text) {
                 case "/start":
                     sendMsg(message, "Привет. ");
-                    sendMsg(message, "Ты можешь поделиться с ним своим местоположением, введя команду /loc и жмякнув на кнопку \"отправить геопозицию\". Правда, пока я не придумал, как его можно использовать.");
+                    sendMsg(message, "Ты можешь поделиться со мной своим местоположением, введя команду /loc и жмякнув на кнопку \"отправить геопозицию\". Правда, пока я не придумал, как его можно использовать.");
                     break;
                 case "/loc":
                     sendLoc(message, "Нажмите на кнопку, что бы отправить свои координаты");
@@ -51,6 +51,7 @@ public class Bot extends TelegramLongPollingBot {
                     break;
             }
         }
+        if (message.hasLocation()) forwardLoc(message, "одну минуточку");
     }
 
     @Override
@@ -80,9 +81,9 @@ public class Bot extends TelegramLongPollingBot {
     @SuppressWarnings("deprecation")
     private void sendPht(Message msg) {
         SendPhoto photo = new SendPhoto();
-        photo.setCaption("Твой господин.");
-        photo.setChatId(msg.getChatId());
-        photo.setPhoto("https://pp.userapi.com/c840431/v840431484/2a926/anY0ALawqH4.jpg");
+        final String photoCaption = "Твой господин.";
+        final String photoUrl = "https://pp.userapi.com/c840431/v840431484/2a926/anY0ALawqH4.jpg";
+        photo.setChatId(msg.getChatId()).setCaption(photoCaption).setPhoto(photoUrl);
 
         try {
             sendPhoto(photo);
@@ -97,7 +98,8 @@ public class Bot extends TelegramLongPollingBot {
         message.enableMarkdown(true);
 
         KeyboardButton keyboardButton = new KeyboardButton();
-        keyboardButton.setRequestLocation(true).setText("отправить геопозицию");
+        final String locationButtonText = "отправить геопозицию";
+        keyboardButton.setRequestLocation(true).setText(locationButtonText);
 
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboard = new ArrayList<>();
@@ -115,6 +117,20 @@ public class Bot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
+    }
 
+    @SuppressWarnings("deprecation")
+    private void forwardLoc(Message msg, String text) {
+        final String target = "@db_locations";
+        ForwardMessage message = new ForwardMessage();
+        message.setFromChatId(msg.getChatId());
+        message.setChatId(target);
+        message.setMessageId(msg.getMessageId());
+
+        try {
+            forwardMessage(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 }
