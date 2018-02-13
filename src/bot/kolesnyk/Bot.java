@@ -2,22 +2,15 @@ package bot.kolesnyk;
 
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.TelegramBotsApi;
-import org.telegram.telegrambots.api.methods.GetMe;
-import org.telegram.telegrambots.api.methods.send.SendLocation;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.methods.send.SendPhoto;
-import org.telegram.telegrambots.api.objects.Location;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
-import org.telegram.telegrambots.api.objects.inlinequery.InlineQuery;
-import org.telegram.telegrambots.api.objects.replykeyboard.ForceReplyKeyboard;
-import org.telegram.telegrambots.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.exceptions.TelegramApiException;
-import org.telegram.telegrambots.exceptions.TelegramApiValidationException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -104,8 +97,7 @@ public class Bot extends TelegramLongPollingBot {
         message.enableMarkdown(true);
 
         KeyboardButton keyboardButton = new KeyboardButton();
-        keyboardButton.setRequestLocation(true);
-        keyboardButton.setText("отправить геопозицию");
+        keyboardButton.setRequestLocation(true).setText("отправить геопозицию");
 
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboard = new ArrayList<>();
@@ -114,14 +106,9 @@ public class Bot extends TelegramLongPollingBot {
         buttons.add(keyboardButton);
 
         keyboard.add(buttons);
-        replyKeyboardMarkup.setKeyboard(keyboard);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(true);
-        replyKeyboardMarkup.setSelective(true);
+        replyKeyboardMarkup.setKeyboard(keyboard).setResizeKeyboard(true).setOneTimeKeyboard(true);
 
-        message.setChatId(msg.getChatId());
-        message.setText(text);
-        message.setReplyMarkup(replyKeyboardMarkup);
+        message.setChatId(msg.getChatId()).setText(text).setReplyMarkup(replyKeyboardMarkup);
 
         try {
             sendMessage(message);
