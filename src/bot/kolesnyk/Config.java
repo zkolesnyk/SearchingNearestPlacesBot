@@ -11,10 +11,6 @@ public class Config {
     public static String BOT_NAME;
     public static String BOT_TOKEN;
 
-    public static String DB_PATH;
-    public static String DB_USER;
-    public static String DB_PWD;
-
     public static void load() {
         Properties botSettings = new Properties();
 
