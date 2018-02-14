@@ -20,6 +20,7 @@ import java.util.List;
 public class Bot extends TelegramLongPollingBot {
 
     public static void main(String[] args) {
+        Config.load();
         ApiContextInitializer.init(); // инициализируем api
         TelegramBotsApi botsApi = new TelegramBotsApi();
         try {
@@ -56,12 +57,12 @@ public class Bot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "kolesnyk_bot"; // озвращаем юзера
+        return Config.BOT_NAME;
     }
 
     @Override
     public String getBotToken() {
-        return "517084638:AAGMSgCFPRw94YNLSlR7IerekN4lC2EcgdQ";
+        return Config.BOT_TOKEN;
     }
 
     @SuppressWarnings("deprecation") // в новых версиях метод изменяется или убирается
@@ -108,7 +109,7 @@ public class Bot extends TelegramLongPollingBot {
         buttons.add(keyboardButton);
 
         keyboard.add(buttons);
-        replyKeyboardMarkup.setKeyboard(keyboard).setResizeKeyboard(true).setOneTimeKeyboard(true);
+        replyKeyboardMarkup.setKeyboard(keyboard).setResizeKeyboard(true).setOneTimeKeyboard(false);
 
         message.setChatId(msg.getChatId()).setText(text).setReplyMarkup(replyKeyboardMarkup);
 
@@ -121,7 +122,7 @@ public class Bot extends TelegramLongPollingBot {
 
     @SuppressWarnings("deprecation")
     private void forwardLoc(Message msg, String text) {
-        final String target = "@db_locations";
+        final String target = "69468774";
         ForwardMessage message = new ForwardMessage();
         message.setFromChatId(msg.getChatId());
         message.setChatId(target);
