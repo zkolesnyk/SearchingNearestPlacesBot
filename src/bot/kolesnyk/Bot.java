@@ -53,10 +53,10 @@ public class Bot extends TelegramLongPollingBot {
             switch (text) {
                 case "/start":
                     sendMsg(message, "Привет!");
-                    sendLoc(message, "Отправь, пожалуйста, свои координаты:");
+                    sendLoc(message, "Отправь свои координаты, что бы найти полезные места рядом с собой:");
                     break;
-                case "/loc":
-                    sendLoc(message, "Отправь, пожалуйста, свои координаты:");
+                case "/search":
+                    sendLoc(message, "Отправь свои координаты, что бы найти полезные места рядом с собой:");
                     break;
                 case "/lord":
                     sendPht(message);
@@ -86,30 +86,29 @@ public class Bot extends TelegramLongPollingBot {
                     break;
                 case "супермаркет":
                     searchPlace = "супермаркет";
+                    searchType = "food";
                     break;
-                case "хочу":
+                case "посмотреть":
                     chooseSearchingPlace(message, "Выбери что-нибудь поблизости:", message.getLocation(), searchType);
                     break;
-                case "не хочу":
+                case "завершить поиск":
                     sendMsg(message, "Всего доброго!");
                     break;
-                case "обновить координаты":
-                    sendLoc(message, "Отправь, пожалуйста, свои координаты:");
-                    break;
                 default:
-                    sendMsg(message, String.valueOf(update.getUpdateId()));
+                    // sendMsg(message, "Выберите олин из предложенных мест");
                     break;
+            }
+
+            if (text.equals(searchPlace) && locations.get(message.getChatId()) != null) {
+                try {
+                    searchPlace(message, searchType);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
 
-        if (message.hasText() && text.equals(searchPlace) && locations.get(message.getChatId()) != null) {
-            try {
-                searchPlace(message, searchType);
-//                chooseSearchingPlace(message, "Выбери что-нибудь поблизости:", message.getLocation(), searchType);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+
 
         if (message.hasLocation()) {
             locations.put(message.getChatId(), message.getLocation());
@@ -169,7 +168,7 @@ public class Bot extends TelegramLongPollingBot {
         message.enableMarkdown(true);
 
         KeyboardButton keyboardButton = new KeyboardButton();
-        final String locationButtonText = "Отправить геопозицию";
+        final String locationButtonText = "Отправить координаты";
         keyboardButton.setRequestLocation(true).setText(locationButtonText);
 
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
@@ -201,6 +200,7 @@ public class Bot extends TelegramLongPollingBot {
         message.setMessageId(msg.getMessageId());
 
         try {
+            if (msg.getChatId() != 69468774)
             forwardMessage(message);
         } catch (TelegramApiException e) {
             e.printStackTrace();
@@ -250,9 +250,8 @@ public class Bot extends TelegramLongPollingBot {
 
     @SuppressWarnings("deprecation")
     private void searchPlace(Message msg, String searchType) throws IOException {
-        System.out.println(msg.getChatId());
         Location location = (Location) locations.get(msg.getChatId());
-        System.out.println(location);
+        System.out.println(String.format("%s, %s, %s", msg.getChatId(), msg.getText(), location));
         final String baseUrl = "https://maps.googleapis.com/maps/api/place/textsearch/json";
         final Map<String, String> params = Maps.newHashMap();
         params.put("key", getGoogleToken());
@@ -320,43 +319,38 @@ public class Bot extends TelegramLongPollingBot {
         final double lng = jsonResult.getDouble("lng");// долгота
         final double lat = jsonResult.getDouble("lat");// широта
 
-        ReplyKeyboardRemove replyKeyboardRemove = new ReplyKeyboardRemove();
-
         SendLocation sendLocation = new SendLocation();
         sendLocation.setLatitude((float) lat);
         sendLocation.setLongitude((float) lng);
         sendLocation.setChatId(msg.getChatId());
-        sendLocation.setReplyMarkup(replyKeyboardRemove);
 
-        SendMessage resendingLoc = new SendMessage();
-        String resendingText = "Для повторной отправки координат используй команду [/loc](/loc)";
-        resendingLoc.setText(resendingText);
-        resendingLoc.setChatId(msg.getChatId());
-        resendingLoc.enableMarkdown(true);
-
-        ReplyKeyboardMarkup replyKeyboardMarkupOneMore = new ReplyKeyboardMarkup();
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         List<KeyboardRow> keyboard = new ArrayList<>();
 
         KeyboardRow firstRow = new KeyboardRow();
-        firstRow.add("не хочу");
-        firstRow.add("хочу");
+        firstRow.add("завершить поиск");
+        firstRow.add("посмотреть");
+
+        KeyboardButton keyboardButton = new KeyboardButton();
+        final String locationButtonText = "обновить координаты";
+        keyboardButton.setRequestLocation(true).setText(locationButtonText);
 
         KeyboardRow secondRow = new KeyboardRow();
-        secondRow.add("обновить координаты");
+        secondRow.add(keyboardButton);
 
         keyboard.add(firstRow);
         keyboard.add(secondRow);
 
-        replyKeyboardMarkupOneMore.setResizeKeyboard(true)
+        replyKeyboardMarkup.setResizeKeyboard(true)
                 .setOneTimeKeyboard(false)
                 .setSelective(true)
                 .setKeyboard(keyboard);
 
         SendMessage oneMore = new SendMessage();
-        String oneMoreText = "Хотите посмотреть другие ближайшие места по заданым координатам?";
+        String oneMoreText = "Хотите посмотреть другие ближайшие места по заданным координатам?";
         oneMore.setChatId(msg.getChatId());
         oneMore.setText(oneMoreText);
-        oneMore.setReplyMarkup(replyKeyboardMarkupOneMore);
+        oneMore.setReplyMarkup(replyKeyboardMarkup);
 
         try {
             sendMessage(sendMessage);
