@@ -1,8 +1,5 @@
 package bot.kolesnyk;
 
-import com.google.common.collect.Maps;
-import org.glassfish.jersey.internal.util.collection.StringKeyIgnoreCaseMultivaluedMap;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.telegram.telegrambots.ApiContextInitializer;
 import org.telegram.telegrambots.TelegramBotsApi;
@@ -10,11 +7,14 @@ import org.telegram.telegrambots.api.methods.ForwardMessage;
 import org.telegram.telegrambots.api.methods.send.SendLocation;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.methods.send.SendPhoto;
-import org.telegram.telegrambots.api.objects.Location;
-import org.telegram.telegrambots.api.objects.Message;
-import org.telegram.telegrambots.api.objects.Update;
+import org.telegram.telegrambots.api.methods.updatingmessages.EditMessageCaption;
+import org.telegram.telegrambots.api.methods.updatingmessages.EditMessageLiveLocation;
+import org.telegram.telegrambots.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.api.objects.*;
+import org.telegram.telegrambots.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -29,6 +29,15 @@ import java.util.Map;
 public class Bot extends TelegramLongPollingBot {
 
     Map locations = new HashMap<Long, Location>();
+    String[] placesRU = new String[]{"туалет", "аптека", "метро", "супермаркет", "кафе", "банкомат"};
+    String[] types;
+    Map placesENMap = new HashMap<String, String>();
+    Map searchTypes = new HashMap<String, String>();
+    Map jsonResults = new HashMap<Long, JSONObject>();
+    List test;
+
+    Message s;
+
 
     public static void main(String[] args) {
         Config.load();
@@ -44,13 +53,25 @@ public class Bot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         // костяк с ответами на сообщения
-        Message message = update.getMessage();
-        String text = message.getText();
         String searchPlace = "";
         String searchType = "";
+        boolean result = false;
+
         boolean searchOpenNow = true;
-        if (message.hasText()) {
-            switch (text) {
+        if (update.hasMessage() && update.getMessage().hasText()) {
+
+            Message message = update.getMessage();
+            s = message;
+            String messageText = update.getMessage().getText();
+            long chatId = message.getChatId();
+
+            for (int i = 0; i < placesRU.length; i++) {
+                if (messageText.equals(placesRU[i])) {
+                    searchPlace = placesRU[i];
+                    searchType = (String) searchTypes.get(placesRU[i]);
+                }
+            }
+            switch (messageText) {
                 case "/start":
                     sendMsg(message, "Привет!");
                     sendLoc(message, "Отправь свои координаты, что бы найти полезные места рядом с собой:");
@@ -61,37 +82,13 @@ public class Bot extends TelegramLongPollingBot {
                 case "/lord":
                     sendPht(message);
                     break;
-                case "туалет":
-                    searchPlace = "туалет";
-                    break;
-                case "заправка":
-                    searchPlace = "заправка";
-                    searchType = "gas_station";
-                    break;
-                case "школа":
-                    searchPlace = "школа";
-                    searchType = "school";
-                    break;
-                case "метро":
-                    searchPlace = "метро";
-                    searchType = "subway_station";
-                    break;
-                case "кафе":
-                    searchPlace = "кафе";
-                    // searchType = "cafe";
-                    break;
-                case "банкомат":
-                    searchPlace = "банкомат";
-                    searchType = "atm";
-                    break;
-                case "супермаркет":
-                    searchPlace = "супермаркет";
-                    searchType = "food";
-                    break;
                 case "посмотреть":
-                    chooseSearchingPlace(message, "Выбери что-нибудь поблизости:", message.getLocation(), searchType);
+                    chooseSearchingPlace(message, "Выбери что-нибудь поблизости:");
                     break;
                 case "завершить поиск":
+                    sendMsg(message, "Всего доброго!");
+                    break;
+                case "/stop":
                     sendMsg(message, "Всего доброго!");
                     break;
                 default:
@@ -99,21 +96,45 @@ public class Bot extends TelegramLongPollingBot {
                     break;
             }
 
-            if (text.equals(searchPlace) && locations.get(message.getChatId()) != null) {
+            if (messageText.equals(searchPlace) && locations.get(chatId) != null) {
                 try {
                     searchPlace(message, searchType);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
+
+        }
+//        else if (update.hasCallbackQuery()) {
+//            String callbackQueryData = update.getCallbackQuery().getData();
+//            long messageId = update.getCallbackQuery().getMessage().getMessageId();
+//            long chatId = update.getCallbackQuery().getMessage().getChatId();
+//
+//            int index = 0;
+//
+//            if (callbackQueryData.equals("nextPlace")) {
+//                String answer = "В разработке";
+//                EditMessageText newMessage = new EditMessageText()
+//                        .setChatId(chatId)
+//                        .setMessageId(Math.toIntExact(messageId))
+//                        .setText((String) test.get(index)); // тут должен быть возврат строки следующего места
+//                try {
+//                    execute(newMessage);
+//                } catch (TelegramApiException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//
+//        }
+
+        if (update.hasMessage() && update.getMessage().hasLocation()) {
+            locations.put(update.getMessage().getChatId(), update.getMessage().getLocation());
+            forwardLoc(update.getMessage());
+            chooseSearchingPlace(update.getMessage(), "Выбери что-нибудь поблизости:");
         }
 
-
-
-        if (message.hasLocation()) {
-            locations.put(message.getChatId(), message.getLocation());
-            forwardLoc(message);
-            chooseSearchingPlace(message, "Выбери что-нибудь поблизости:", message.getLocation(), searchType);
+        if (update.hasMessage() && locations.get(update.getMessage().getChatId())== null) {
+            sendLoc(update.getMessage(), "Для начала отправь свои координаты (они где-то потерялись):");
         }
     }
 
@@ -142,7 +163,7 @@ public class Bot extends TelegramLongPollingBot {
                 .setText(text)
                 .setReplyMarkup(replyKeyboardRemove);
         try { // чтобы не крашнулась
-            sendMessage(message);
+            execute(message);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
@@ -208,39 +229,20 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     @SuppressWarnings("deprecation")
-    private void chooseSearchingPlace(Message msg, String text, Location location, String searchType) {
+    private void chooseSearchingPlace(Message msg, String text) {
+        String[] placesEN = new String[]{"wc", "pharmacy", "subway station", "supermatket", "cafe", "atm"};
+        types = new String[]{"", "", "subway_station", "food", "", "atm"};
+
+        for (int i = 0; i < placesRU.length; i++) {
+            searchTypes.put(placesRU[i], types[i]);
+            placesENMap.put(placesRU[i], placesEN[i]);
+        }
+
         SendMessage sendMessage = new SendMessage();
-
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> keyboard = new ArrayList<>();
-
-        KeyboardRow firstRow = new KeyboardRow();
-        firstRow.add("туалет");
-        firstRow.add("метро");
-
-        KeyboardRow secondRow = new KeyboardRow();
-        secondRow.add("супермаркет");
-        secondRow.add("кафе");
-
-        KeyboardRow thirdRow = new KeyboardRow();
-        thirdRow.add("банкомат");
-        thirdRow.add("заправка");
-
-
-        keyboard.add(firstRow);
-        keyboard.add(secondRow);
-        keyboard.add(thirdRow);
-
-        replyKeyboardMarkup.setResizeKeyboard(true)
-                .setOneTimeKeyboard(false)
-                .setSelective(true)
-                .setKeyboard(keyboard);
-
         sendMessage.setChatId(msg.getChatId())
                 .setChatId(msg.getChatId())
                 .setText(text)
-                .setReplyMarkup(replyKeyboardMarkup);
-
+                .setReplyMarkup(getChooseSearchingPlaceKeyboard(placesRU));
         try {
             sendMessage(sendMessage);
         } catch (TelegramApiException e) {
@@ -248,30 +250,78 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    private void searchPlace(Message msg, String searchType) throws IOException {
+    private ReplyKeyboardMarkup getChooseSearchingPlaceKeyboard(String[] places) {
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        for (int i = 0; i < places.length; i+=2) {
+            KeyboardRow keyboardRow = new KeyboardRow();
+            keyboardRow.add(places[i]);
+            if (i != places.length - 1) {
+                keyboardRow.add(places[i+1]);
+            }
+            keyboard.add(keyboardRow);
+        }
+        replyKeyboardMarkup.setResizeKeyboard(true)
+                .setOneTimeKeyboard(false)
+                .setSelective(true)
+                .setKeyboard(keyboard);
+
+        return replyKeyboardMarkup;
+    }
+
+    private String getUrl(Message msg, String searchType) {
         Location location = (Location) locations.get(msg.getChatId());
-        System.out.println(String.format("%s, %s, %s", msg.getChatId(), msg.getText(), location));
+        User user = msg.getFrom();
+
+        System.out.println(String.format("%s %s, @%s", user.getFirstName(), user.getLastName(), user.getUserName()));
+        System.out.println(String.format("%s, %s", msg.getText(), (String.format("%s, %s", location.getLatitude(), location.getLongitude()))));
+
+        String language = "ru";
         final String baseUrl = "https://maps.googleapis.com/maps/api/place/textsearch/json";
-        final Map<String, String> params = Maps.newHashMap();
+        final Map<String, String> params = new HashMap<>();
         params.put("key", getGoogleToken());
-        params.put("query", msg.getText());
+        if (user.getLanguageCode().equals("en-UA")) {
+            language = "en";
+            params.put("query", (String) placesENMap.get(msg.getText()));
+        } else params.put("query", msg.getText());
         params.put("location", String.format("%s,%s", location.getLatitude(), location.getLongitude()));
-        params.put("language", "ru");
+        params.put("language", language);
         if (searchType != null) {
             params.put("type", searchType);
         }
-        params.put("radius", String.format("%d", 50));
+        int radius = 50;
+        params.put("radius", String.format("%d", radius));
         final String url = baseUrl + "?" + JsonReader.encodeParams(params);
         System.out.println(url);
+        return url;
+    }
 
-        final JSONObject response = JsonReader.read(url);
+    private SendLocation sendLocation(Message msg, double lat, double lng) {
+        SendLocation sendLocation = new SendLocation();
+        sendLocation.setLatitude((float) lat);
+        sendLocation.setLongitude((float) lng);
+        sendLocation.setChatId(msg.getChatId());
 
+        return sendLocation;
+    }
+
+    private SendMessage sendMessage(Message msg, String text) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(msg.getChatId());
+        sendMessage.setText(text);
 
-        JSONObject jsonResult = response.getJSONArray("results").getJSONObject(0);
+        return sendMessage;
+    }
 
+    public JSONObject getJSONObgect(Message msg, String searchType, int index) throws IOException {
+        final JSONObject response = JsonReader.read(getUrl(msg, searchType));
+
+        return response.getJSONArray("results").getJSONObject(index);
+    }
+
+    private String getText(JSONObject jsonResult) {
         final String name = jsonResult.getString("name");
         final String address = jsonResult.getString("formatted_address");
 
@@ -286,78 +336,94 @@ public class Bot extends TelegramLongPollingBot {
                 resultInfo = jsonResult.getJSONObject("opening_hours");
                 isOpenNow = resultInfo.getBoolean("open_now");
                 openNowString = (isOpenNow) ? "Открыто сейчас" : "Закрыто сейчас";
-                sendMessage.setText(String.format("%s%nРейтинг: %s%nАдрес: %s%n%s",
+                return String.format("%s%nРейтинг: %s%nАдрес: %s%n%s",
                         name,
                         rating,
                         address,
-                        openNowString));
+                        openNowString);
             } else {
                 resultInfo = jsonResult.getJSONObject("opening_hours");
                 isOpenNow = resultInfo.getBoolean("open_now");
                 openNowString = (isOpenNow) ? "Открыто сейчас" : "Закрыто сейчас";
-                sendMessage.setText(String.format("%s%nАдрес: %s%n%s",
+                return String.format("%s%nАдрес: %s%n%s",
                         name,
                         address,
-                        openNowString));
+                        openNowString);
             }
         } else if (!jsonResult.has("opening_hours")){
             if (jsonResult.has("rating")) {
                 rating = jsonResult.getDouble("rating");
-                sendMessage.setText(String.format("%s%nРейтинг: %s%nАдрес: %s",
+                return String.format("%s%nРейтинг: %s%nАдрес: %s",
                         name,
                         rating,
-                        address));
+                        address);
             } else {
-                sendMessage.setText(String.format("%s%nАдрес: %s",
+                return String.format("%s%nАдрес: %s",
                         name,
-                        address));
+                        address);
             }
         }
+        return "";
+    }
 
-        jsonResult = jsonResult.getJSONObject("geometry");
-        jsonResult = jsonResult.getJSONObject("location");
-        final double lng = jsonResult.getDouble("lng");// долгота
-        final double lat = jsonResult.getDouble("lat");// широта
+    @SuppressWarnings("deprecation")
+    private void searchPlace(Message msg, String searchType) throws IOException {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(msg.getChatId());
 
-        SendLocation sendLocation = new SendLocation();
-        sendLocation.setLatitude((float) lat);
-        sendLocation.setLongitude((float) lng);
-        sendLocation.setChatId(msg.getChatId());
+            JSONObject jsonResult = getJSONObgect(msg, searchType, 0);
+            //
+            jsonResults.put(msg.getChatId(), jsonResult);
+            //
+            sendMessage.setText(getText(jsonResult));
 
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> keyboard = new ArrayList<>();
+            jsonResult = jsonResult.getJSONObject("geometry");
+            jsonResult = jsonResult.getJSONObject("location");
 
-        KeyboardRow firstRow = new KeyboardRow();
-        firstRow.add("завершить поиск");
-        firstRow.add("посмотреть");
+            final double lat = jsonResult.getDouble("lat");
+            final double lng = jsonResult.getDouble("lng");
 
-        KeyboardButton keyboardButton = new KeyboardButton();
-        final String locationButtonText = "обновить координаты";
-        keyboardButton.setRequestLocation(true).setText(locationButtonText);
+            ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+            List<KeyboardRow> keyboard = new ArrayList<>();
 
-        KeyboardRow secondRow = new KeyboardRow();
-        secondRow.add(keyboardButton);
+            KeyboardRow firstRow = new KeyboardRow();
+            firstRow.add("завершить поиск");
+            firstRow.add("посмотреть");
 
-        keyboard.add(firstRow);
-        keyboard.add(secondRow);
+            KeyboardButton keyboardButton = new KeyboardButton();
+            final String locationButtonText = "обновить координаты";
+            keyboardButton.setRequestLocation(true).setText(locationButtonText);
 
-        replyKeyboardMarkup.setResizeKeyboard(true)
-                .setOneTimeKeyboard(false)
-                .setSelective(true)
-                .setKeyboard(keyboard);
+            KeyboardRow secondRow = new KeyboardRow();
+            secondRow.add(keyboardButton);
 
-        SendMessage oneMore = new SendMessage();
-        String oneMoreText = "Хотите посмотреть другие ближайшие места по заданным координатам?";
-        oneMore.setChatId(msg.getChatId());
-        oneMore.setText(oneMoreText);
-        oneMore.setReplyMarkup(replyKeyboardMarkup);
+            keyboard.add(firstRow);
+            keyboard.add(secondRow);
 
-        try {
-            sendMessage(sendMessage);
-            sendLocation(sendLocation);
-            sendMessage(oneMore);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
+            replyKeyboardMarkup.setResizeKeyboard(true)
+                    .setOneTimeKeyboard(false)
+                    .setSelective(true)
+                    .setKeyboard(keyboard);
+
+            String oneMoreText = "Хотите посмотреть другие ближайшие места по заданным координатам?";
+
+
+            InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+            List<InlineKeyboardButton> rowInline = new ArrayList<>();
+            rowInline.add(new InlineKeyboardButton().setText("Следующий").setCallbackData("nextPlace"));
+            // Set the keyboard to the markup
+            rowsInline.add(rowInline);
+            // Add it to the message
+            markupInline.setKeyboard(rowsInline);
+            //sendMessage.setReplyMarkup(markupInline);
+
+            try {
+                sendMessage(sendMessage);
+                sendLocation(sendLocation(msg, lat, lng));
+                sendMessage(sendMessage(msg, oneMoreText).setReplyMarkup(replyKeyboardMarkup));
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
     }
 }
